@@ -14,8 +14,8 @@ git clone -b monolith https://github.com/express42/reddit.git
 cd reddit && bundle install
 puma -d
 echo "Enabling puma..."
-cd /etc/system.d/system/
-wget https://storage.cloud.google.com/packer-base-bucket/puma-server.service
+cd /etc/systemd/system/
+gsutil cp gs://packer-base-bucket/puma-server.service .
 systemctl daemon-reload
 systemctl enable puma-server.service
 systemctl start puma-server.service
