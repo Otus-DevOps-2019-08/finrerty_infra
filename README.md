@@ -129,3 +129,59 @@ gcloud compute instances create reddit-app-test\
 Создание правила фаерволла:
 gcloud compute firewall-rules create puma-rule --allow tcp:9292 --target-tags=puma-server
 
+# HomeWork #5
+
+1. Создаём новую ветку в репозитории
+$ git checkout -b packer-base
+
+2. Переносим файлы прошлого ДЗ в отдельную папку config-scripts
+$ git mv *.sh config-scripts/
+
+3. Устанавливаем Packer
+$ wget https://releases.hashicorp.com/packer/1.4.3/packer_1.4.3_linux_amd64.zip
+$ unzip packer_1.4.3_linux_amd64.zip
+$ mv packer /user/bin
+
+4. Создаём ADC
+$ gcloud auth application-default login
+
+5. Создаем директорию packer, помещаем туда ubuntu16.json со следующим содержанием
+
+6. Дополняем его скриптами install_ruby.sh и install_mongodb.sh
+
+7. Проверяем корректность файла и build'им образ
+$ packer validate ./ubuntu16.json 
+$ packer build ubuntu16.json
+
+8. Создаём из полученного шаблона виртуальную машину и подключаемся к ней
+$ ssh -i ~/.ssh/vlad vlad@35.233.52.106
+
+9. Деплоим приложение при помощи deploy.sh
+
+10. Добавляем Network Tag puma-server для открытия порта приложения.
+
+11. Параметризируем шаблон ubuntu16.json, используя следующую конструкцию:
+"project_id": "{{user `project_id`}}"
+
+ВАЖНО! ` - не одиночная кавычка!!
+
+12. Добавляем следующие опции builder для GCP в файлы ubuntu16.json и variables.json
+"image_description"
+"disk_size"
+"disk_type"
+"network"
+"tags"
+
+## Дополнительное задание №1
+Созданы файлы:
+immutable.json
+в качестве скрипта при запуске взят чуть доработанный startup_script.sh из прошлого ДЗ
+
+Запуск билда:
+$ packer build -var-file=variables.json immutable.json
+
+## Дополнительное задание №2
+gcloud compute instances create reddit-app-test \
+>   --image=reddit-full-1569413083 \
+>   --restart-on-failure
+
