@@ -1,6 +1,6 @@
 terraform {
   # Версия terraform
-  required_version = "0.12.9"
+  required_version = "~> 0.12.8"
 }
 
 provider "google" {
@@ -13,10 +13,11 @@ provider "google" {
 }
 
 resource "google_compute_instance" "app" {
-  name         = "reddit-app"
+  name         = "reddit-app{$count.index}"
   machine_type = "g1-small"
   zone         = var.zone
   tags         = ["puma-server"]
+  count        = var.server_count
 
   # определение загрузочного диска
   boot_disk {
@@ -32,7 +33,7 @@ resource "google_compute_instance" "app" {
 
   metadata = {
     # путь до публичного ключа
-    ssh-keys = "vlad:${file(var.public_key_path)}"
+    ssh-keys               = "vlad:${file(var.public_key_path)}"
     block-project-ssh-keys = false
   }
 
@@ -53,49 +54,6 @@ resource "google_compute_instance" "app" {
     script = "files/deploy.sh"
   }
 }
-
-resource "google_compute_instance" "app-2" {
-  name         = "reddit-app-2"
-  machine_type = "g1-small"
-  zone         = var.zone
-  tags         = ["puma-server"]
-
-  # определение загрузочного диска
-  boot_disk {
-    initialize_params {
-      image = var.disk_image
-    }
-  }
-
-  network_interface {
-    network = "default"
-    access_config {}
-  }
-
-  metadata = {
-    # путь до публичного ключа
-    ssh-keys = "vlad:${file(var.public_key_path)}"
-    block-project-ssh-keys = false
-  }
-
-  connection {
-    type        = "ssh"
-    host        = self.network_interface[0].access_config[0].nat_ip
-    user        = "vlad"
-    agent       = false
-    private_key = file(var.private_key_path)
-  }
-
-  provisioner "file" {
-    source      = "files/puma.service"
-    destination = "/tmp/puma.service"
-  }
-
-  provisioner "remote-exec" {
-    script = "files/deploy.sh"
-  }
-}
-
 
 resource "google_compute_firewall" "firewall_puma" {
   name = "default-puma-server"
