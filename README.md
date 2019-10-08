@@ -286,3 +286,74 @@ EOF
 - Добавляем переменную server_count со значением по-умолчанию 1.
 
 
+# HomeWork №7
+1. Создаём новую ветку в репозитории  
+$ git checkout -b terraform-2
+
+2. В файле terraform.tfvars выставляем значение server_count = 1  
+
+3. Переносим lb.tf в поддиректорию files  
+$ git mv lb.tf files/
+
+4. Добавляем информацию о текущем правиле default-allow-ssh в state файл  
+Это необходимо для возможности его редактирования вместо создания нового  
+$ terraform import google_compute_firewall.firewall_ssh default-allow-ssh
+
+5. Вносим изменения в файл main.tf, описывая правило доступа к серверам по ssh  
+
+6. Добавляем ресурс reddit-app-ip для создания статического адреса нашим terraform'ом
+
+7. Присваиваем созданный ранее IP-адрес нашему серверу с приложением 
+
+8. Разделяем инфраструктуру на несколько VM. Первым делом переписываем шаблоны packer.  
+Для этого создаем 2 файла:  
+db.json, где в сегменте "provisioners" указываем скрипт установки MongoDB  
+app.json, где в сегменте "provisioners" указываем скрипт установки Ruby
+
+9. Создаём новые шаблоны packer'ом  
+$ packer build -var-file=variables.json app.json
+$ packer build -var-file=variables.json db.json
+
+10. В директории terraform создаём файлы db.tf и app.tf.  
+Копируем в них необходимые для функционирования VM ресурсы.
+
+11. Создаём файлы vpc.tf для SSH-правила и ssh.tf для описание SSH-ключей проекта.
+
+12. Создаём директорию modules, размещаем в ней 2 директории app и db  
+В обеих директориях создаём файлы:  
+main.tf  
+outputs.tf
+variables.tf  
+
+13. В файле main.tf указываем путь к модулям в формате "./modules/app", затем выполняем  
+$ terraform get
+
+14. Указываем в корневом файле outputs.tf путь к аналогичному файлу в модуле app
+```
+output "app_external_ip" {
+  value = module.app.app_external_ip
+}
+```
+
+15. Создаём модуль vpn, размещаем в нем файлы:  
+main.tf
+outputs.tf
+variables.tf  
+В файл main.tf прописываем:  
+```
+resource "google_compute_firewall" "firewall_ssh" {
+  name = "default-allow-ssh"
+  description = "Allow SSH from anywhere"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+```
+
+16. 
