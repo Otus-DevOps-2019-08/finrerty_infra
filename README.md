@@ -407,3 +407,65 @@ use this backend unless the backend configuration changes.
 Error: Error locking state ... googleapi: Error 412: Precondition Failed, conditionNotMet
 
 
+## Дополнительное задание №2
+
+- Для использования файлов в provisioners перенесём их в папку модуля app
+- Отредактируем пути в файле main.tf модуля app следующим образом:  
+source = "../modules/app/files/puma.service"  
+script = "../modules/app/files/deploy.sh"
+
+-Теперь нам необходимо настроить взаимодействие приложения с БД:
+1. Создадим output-переменную db_internal_ip в модуле db
+```
+output "db_internal_ip" {
+  value = google_compute_instance.db.network_interface.0.network_ip
+}
+```
+2. В файлах main.tf сред stage и prod передадим значение этой переменной модулю app
+```
+db_internal_ip   = module.db.db_internal_ip
+```
+3. Объявим эту переменную в файле variables.tf модуля app
+```
+variable db_internal_ip {
+  description = "Database network IP"
+}
+```
+4. Добавим в main.tf provisioner для передачи этой переменной в систему
+```
+  provisioner "remote-exec" {
+    inline = ["echo export DATABASE_URL=\"${var.db_internal_ip}\" >> ~/.profile"]
+  }
+```  
+Мы реализовали передачу ip-адреса БД приложению. Однако база всё равно не работает.  
+Для решения этой проблемы необходимо отредактировать mongod.conf в системе с БД:
+5. Создадим "правильный" mongod.conf и разместим его в папке files модуля db
+6. Опишем подключение к серверу в файле main.tf модуля db
+```
+  connection {
+    type        = "ssh"
+    host        = self.network_interface[0].access_config[0].nat_ip
+    user        = "vlad"
+    agent       = false
+    private_key = file(var.private_key_path)
+  }
+```
+Для выполнения данной операции необходимо заранее объявить переменную ключа в variables.tf:
+```
+variable private_key_path {
+  description = "Path to the public key used to connect to instance"
+}
+```
+7. Туда же добавим 2 provisioner'a для размещения этого файла в системе
+```
+  provisioner "file" {
+    source = "../modules/db/files/mongod.conf"
+    destination = "/tmp/mongod.conf"
+  }
+
+  provisioner "remote-exec" {
+    inline = ["sudo mv /tmp/mongod.conf /etc/mongod.conf && sudo systemctl restart mongod"]
+  }
+```
+Теперь выполним terraform apply и убедимся, что наше приложение полностью функционирует.
+

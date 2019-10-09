@@ -39,6 +39,10 @@ resource "google_compute_instance" "app" {
   }
 
   provisioner "remote-exec" {
+    inline = ["echo export DATABASE_URL=\"${var.db_internal_ip}\" >> ~/.profile"]
+  }
+
+  provisioner "remote-exec" {
     script = "../modules/app/files/deploy.sh"
   }
 }

@@ -19,3 +19,7 @@ variable app_disk_image {
 variable server_count {
   default = 1
 }
+
+variable db_internal_ip {
+  description = "Database network IP"
+}

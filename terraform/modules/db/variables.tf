@@ -11,3 +11,6 @@ variable db_disk_image {
   default     = "reddit-db-base"
 }
 
+variable private_key_path {
+  description = "Path to the public key used to connect to instance"
+}
