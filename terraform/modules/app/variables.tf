@@ -8,12 +8,12 @@ variable private_key_path {
 
 variable zone {
   description = "Zone"
-  default = "europe-west1-b"
+  default     = "europe-west1-b"
 }
 
 variable app_disk_image {
   description = "Disk image for reddit app"
-  default = "reddit-app-base"
+  default     = "reddit-app-base"
 }
 
 variable server_count {

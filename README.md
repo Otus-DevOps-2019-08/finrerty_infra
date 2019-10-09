@@ -356,4 +356,54 @@ resource "google_compute_firewall" "firewall_ssh" {
 
 ```
 
-16. 
+16. Добавляем переменную для source_ranges, описываем её в variables.tf
+```
+variable source_ranges {
+  description = "Allowed IP addresses"
+  default = ["0.0.0.0/0"]
+}
+```
+
+17. Меняем значение default на наш внешний IP-адрес, пробуем подключиться по ssh  
+$ ssh vlad@35.240.102.227 - Подключение проходит успешно
+
+18. Меняем значение default на случайний внешний IP-адрес, пробуем подключиться по ssh  
+$ ssh vlad@35.240.102.227 - Подключение не проходит
+
+19. Возвращаем значение default 0.0.0.0/0
+
+20. Реализовано разделение на stage и prod путём создания новых директорий в корневой
+
+21. Добавлен модуль storage-bucket:  
+Outputs:  
+storage-bucket_url = gs://reddit-app-storage-bucket
+
+## Дополнительное задание №1
+
+- Для реализации удалённого бэкенда воспользуемся созданным в прошлом шаге Backet'ом  
+Создаём файл backend.tf в корневой директории stage со следующим содержанием:  
+```
+terraform {
+  backend "gcs" {
+    bucket = "reddit-app-storage-bucket"
+    prefix = "terraform/state/stage"
+  }
+}
+
+```
+Аналогично поступаем и для prod
+
+- Теперь проверяем работу в другом репозитории  
+$ mkdir ~/test  
+$ mkdir ~/test/stage  
+$ cp -R /terraform/modules ~/test/ && cp *.tf* ~/test/stage/  
+$ cd ~/test/stage && terraform init  
+Получаем сообщение:  
+Successfully configured the backend "gcs"! Terraform will automatically  
+use this backend unless the backend configuration changes.
+
+- Теперь проверим работу блокировок, выполняем terraform destroy в обеих директориях  
+В первой (по счёту) директории всё выполняется успешно, а вот во второй получаем ошибку:  
+Error: Error locking state ... googleapi: Error 412: Precondition Failed, conditionNotMet
+
+

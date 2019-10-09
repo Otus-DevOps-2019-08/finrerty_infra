@@ -1,3 +1,4 @@
-#variable private_key_path {
-#  description = "Path to the private key used for ssh access"
-#}
+variable source_ranges {
+  description = "Allowed IP addresses"
+  default     = ["0.0.0.0/0"]
+}
