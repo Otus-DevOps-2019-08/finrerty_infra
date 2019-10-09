@@ -286,3 +286,186 @@ EOF
 - Добавляем переменную server_count со значением по-умолчанию 1.
 
 
+# HomeWork №7
+1. Создаём новую ветку в репозитории  
+$ git checkout -b terraform-2
+
+2. В файле terraform.tfvars выставляем значение server_count = 1  
+
+3. Переносим lb.tf в поддиректорию files  
+$ git mv lb.tf files/
+
+4. Добавляем информацию о текущем правиле default-allow-ssh в state файл  
+Это необходимо для возможности его редактирования вместо создания нового  
+$ terraform import google_compute_firewall.firewall_ssh default-allow-ssh
+
+5. Вносим изменения в файл main.tf, описывая правило доступа к серверам по ssh  
+
+6. Добавляем ресурс reddit-app-ip для создания статического адреса нашим terraform'ом
+
+7. Присваиваем созданный ранее IP-адрес нашему серверу с приложением 
+
+8. Разделяем инфраструктуру на несколько VM. Первым делом переписываем шаблоны packer.  
+Для этого создаем 2 файла:  
+db.json, где в сегменте "provisioners" указываем скрипт установки MongoDB  
+app.json, где в сегменте "provisioners" указываем скрипт установки Ruby
+
+9. Создаём новые шаблоны packer'ом  
+$ packer build -var-file=variables.json app.json
+$ packer build -var-file=variables.json db.json
+
+10. В директории terraform создаём файлы db.tf и app.tf.  
+Копируем в них необходимые для функционирования VM ресурсы.
+
+11. Создаём файлы vpc.tf для SSH-правила и ssh.tf для описание SSH-ключей проекта.
+
+12. Создаём директорию modules, размещаем в ней 2 директории app и db  
+В обеих директориях создаём файлы:  
+main.tf  
+outputs.tf
+variables.tf  
+
+13. В файле main.tf указываем путь к модулям в формате "./modules/app", затем выполняем  
+$ terraform get
+
+14. Указываем в корневом файле outputs.tf путь к аналогичному файлу в модуле app
+```
+output "app_external_ip" {
+  value = module.app.app_external_ip
+}
+```
+
+15. Создаём модуль vpn, размещаем в нем файлы:  
+main.tf
+outputs.tf
+variables.tf  
+В файл main.tf прописываем:  
+```
+resource "google_compute_firewall" "firewall_ssh" {
+  name = "default-allow-ssh"
+  description = "Allow SSH from anywhere"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+```
+
+16. Добавляем переменную для source_ranges, описываем её в variables.tf
+```
+variable source_ranges {
+  description = "Allowed IP addresses"
+  default = ["0.0.0.0/0"]
+}
+```
+
+17. Меняем значение default на наш внешний IP-адрес, пробуем подключиться по ssh  
+$ ssh vlad@35.240.102.227 - Подключение проходит успешно
+
+18. Меняем значение default на случайний внешний IP-адрес, пробуем подключиться по ssh  
+$ ssh vlad@35.240.102.227 - Подключение не проходит
+
+19. Возвращаем значение default 0.0.0.0/0
+
+20. Реализовано разделение на stage и prod путём создания новых директорий в корневой
+
+21. Добавлен модуль storage-bucket:  
+Outputs:  
+storage-bucket_url = gs://reddit-app-storage-bucket
+
+## Дополнительное задание №1
+
+- Для реализации удалённого бэкенда воспользуемся созданным в прошлом шаге Backet'ом  
+Создаём файл backend.tf в корневой директории stage со следующим содержанием:  
+```
+terraform {
+  backend "gcs" {
+    bucket = "reddit-app-storage-bucket"
+    prefix = "terraform/state/stage"
+  }
+}
+
+```
+Аналогично поступаем и для prod
+
+- Теперь проверяем работу в другом репозитории  
+$ mkdir ~/test  
+$ mkdir ~/test/stage  
+$ cp -R /terraform/modules ~/test/ && cp *.tf* ~/test/stage/  
+$ cd ~/test/stage && terraform init  
+Получаем сообщение:  
+Successfully configured the backend "gcs"! Terraform will automatically  
+use this backend unless the backend configuration changes.
+
+- Теперь проверим работу блокировок, выполняем terraform destroy в обеих директориях  
+В первой (по счёту) директории всё выполняется успешно, а вот во второй получаем ошибку:  
+Error: Error locking state ... googleapi: Error 412: Precondition Failed, conditionNotMet
+
+
+## Дополнительное задание №2
+
+- Для использования файлов в provisioners перенесём их в папку модуля app
+- Отредактируем пути в файле main.tf модуля app следующим образом:  
+source = "../modules/app/files/puma.service"  
+script = "../modules/app/files/deploy.sh"
+
+-Теперь нам необходимо настроить взаимодействие приложения с БД:
+1. Создадим output-переменную db_internal_ip в модуле db
+```
+output "db_internal_ip" {
+  value = google_compute_instance.db.network_interface.0.network_ip
+}
+```
+2. В файлах main.tf сред stage и prod передадим значение этой переменной модулю app
+```
+db_internal_ip   = module.db.db_internal_ip
+```
+3. Объявим эту переменную в файле variables.tf модуля app
+```
+variable db_internal_ip {
+  description = "Database network IP"
+}
+```
+4. Добавим в main.tf provisioner для передачи этой переменной в систему
+```
+  provisioner "remote-exec" {
+    inline = ["echo export DATABASE_URL=\"${var.db_internal_ip}\" >> ~/.profile"]
+  }
+```  
+Мы реализовали передачу ip-адреса БД приложению. Однако база всё равно не работает.  
+Для решения этой проблемы необходимо отредактировать mongod.conf в системе с БД:
+5. Создадим "правильный" mongod.conf и разместим его в папке files модуля db
+6. Опишем подключение к серверу в файле main.tf модуля db
+```
+  connection {
+    type        = "ssh"
+    host        = self.network_interface[0].access_config[0].nat_ip
+    user        = "vlad"
+    agent       = false
+    private_key = file(var.private_key_path)
+  }
+```
+Для выполнения данной операции необходимо заранее объявить переменную ключа в variables.tf:
+```
+variable private_key_path {
+  description = "Path to the public key used to connect to instance"
+}
+```
+7. Туда же добавим 2 provisioner'a для размещения этого файла в системе
+```
+  provisioner "file" {
+    source = "../modules/db/files/mongod.conf"
+    destination = "/tmp/mongod.conf"
+  }
+
+  provisioner "remote-exec" {
+    inline = ["sudo mv /tmp/mongod.conf /etc/mongod.conf && sudo systemctl restart mongod"]
+  }
+```
+Теперь выполним terraform apply и убедимся, что наше приложение полностью функционирует.
+
