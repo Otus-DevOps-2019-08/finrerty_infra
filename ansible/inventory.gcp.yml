@@ -1,0 +1,8 @@
+plugin: gcp_compute
+projects:
+  - infra-253311
+zones:
+  - europe-west1-b
+filters: []
+auth_kind: serviceaccount
+service_account_file: "/home/vlad/.gcp/infra-253311-496a801da892.json"

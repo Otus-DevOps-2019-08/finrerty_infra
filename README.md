@@ -504,5 +504,48 @@ $ ansible-playbook clone.yml
 $ ansible-playbook clone.yml  
 Теперь в вкачестве результата выполнения указано: "changed: [appserver]" и "changed=1"
 
+
 ## Дополнительное задание №1
 
+Для создания файла inventory.json воспользуемся Inventory plugins.
+1. Установим необходимые пакеты для авторизации Google  
+$ sudo pip install requests google-auth
+
+2. Сформируем в GCP файл для аутентификации в формате json
+
+3. Создадим Inventory-файл со следующим содержанием:  
+```
+plugin: gcp_compute
+projects:
+  - infra-253311
+zones:
+  - europe-west1-b
+filters: []
+auth_kind: serviceaccount
+service_account_file: "/home/vlad/.gcp/infra-253311-496a801da892.json"
+
+```
+
+4. Сформируем json файл  
+$ ansible-inventory -i inventory.gcp.yml --list | tee inventory.json
+
+5. Выполним:  
+$ ansible -i inventory.gcp.yml all -m ping  
+Получаем следующий вывод:
+```
+104.155.27.197 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+34.76.239.78 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+```
