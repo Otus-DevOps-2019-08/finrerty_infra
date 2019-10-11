@@ -6,3 +6,4 @@ zones:
 filters: []
 auth_kind: serviceaccount
 service_account_file: "/home/vlad/.gcp/infra-253311-496a801da892.json"
+
