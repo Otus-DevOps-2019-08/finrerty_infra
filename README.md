@@ -469,3 +469,83 @@ variable private_key_path {
 ```
 Теперь выполним terraform apply и убедимся, что наше приложение полностью функционирует.
 
+
+# HomeWork №8
+1. Создадим новую ветку  
+$ git checkout -b ansible-1
+
+2. Создадим файд requirements.txt с описанием требуемой версии ansible и выполним:  
+$ sudo pip install -r requirements.txt
+
+3. Создадим файл inventory с описанием информации, необходимой для подключения по SSH к хостам
+
+4. Выполним команды для проверки работы файла:  
+$ ansible appserver -i ./inventory -m ping  
+$ ansible dbserver -i inventory -m ping
+
+5. Создадим ansible.cfg для хранения дефолтных параметров
+
+6. Сократим inventory-файл и разделим описанные в нём хосты на группы.
+
+7. Выполним несколько команд для проверки корректности всех выполненных настроек  
+$ ansible app -m ping  
+$ ansible app -m command -a 'ruby -v'  
+$ ansible app -m shell -a 'ruby -v; bundler -v'  
+
+8. Воспользуемся модулями ansible для проверки состояния сервисов на хостах  
+$ ansible db -m systemd -a name=mongod  
+$ ansible db -m service -a name=mongod
+
+9. Напишем playbook clone.yml для клонирования приложения из git, выполним  
+$ ansible-playbook clone.yml  
+Увидим, что плейбук выполнен, но, т.к. такая папка уже была создана, никаких изменений нет.
+
+10. Теперь удалим папку с приложением и опять выполним playbook clone.yml  
+$ ansible-playbook clone.yml  
+Теперь в вкачестве результата выполнения указано: "changed: [appserver]" и "changed=1"
+
+
+## Дополнительное задание №1
+
+Для создания файла inventory.json воспользуемся Inventory plugins.
+1. Установим необходимые пакеты для авторизации Google  
+$ sudo pip install requests google-auth
+
+2. Сформируем в GCP файл для аутентификации в формате json
+
+3. Создадим Inventory-файл со следующим содержанием:  
+```
+plugin: gcp_compute
+projects:
+  - infra-253311
+zones:
+  - europe-west1-b
+filters: []
+auth_kind: serviceaccount
+service_account_file: "/home/vlad/.gcp/infra-253311-496a801da892.json"
+
+```
+
+4. Сформируем json файл  
+$ ansible-inventory -i inventory.gcp.yml --list | tee inventory.json
+
+5. Выполним:  
+$ ansible -i inventory.gcp.yml all -m ping  
+Получаем следующий вывод:
+```
+104.155.27.197 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+34.76.239.78 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+```
