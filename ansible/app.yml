@@ -2,7 +2,7 @@
   hosts: app
   become: true
   vars:
-    db_host: 10.132.0.3
+    db_host: "{{ hostvars['reddit-db'].ip }}"
   tasks:
     - name: Add config for DB connection
       template:
