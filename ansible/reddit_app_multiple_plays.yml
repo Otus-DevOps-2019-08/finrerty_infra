@@ -1,0 +1,65 @@
+- name: Database Server configuration
+  hosts: db
+  become: true
+  tags: db-tag
+  vars:
+    mongo_bind_ip: 0.0.0.0
+  tasks:
+    - name: Change mongo config file
+      template:
+        src: templates/mongod.conf.j2
+        dest: /etc/mongod.conf
+        mode: 0644
+      notify: restart mongod
+  
+  handlers:
+  - name: restart mongod
+    service: name=mongod state=restarted
+
+- name: App configuration
+  hosts: app
+  become: true
+  tags: app-tag
+  vars:
+    db_host: 10.132.15.211
+  tasks:
+    - name: Add config for DB connection
+      template:
+        src: templates/db_config.j2
+        dest: /home/vlad/db_config
+        owner: vlad
+        group: vlad
+      
+    - name: Add unit file for Puma
+      copy:
+        src: files/puma.service
+        dest: /etc/systemd/system/puma.service
+      notify: reload puma
+
+    - name: Enable puma
+      systemd: name=puma enabled=yes
+
+  handlers:
+  - name: reload puma
+    systemd: name=puma state=reloaded
+
+- name: Deploy App
+  hosts: app
+  tags: deploy-tag
+  tasks:
+    - name: Fetch the latest version of application code
+      git:
+        repo: 'https://github.com/express42/reddit.git'
+        dest: /home/vlad/reddit
+        version: monolith
+      notify: restart puma
+
+    - name: Bundle install 
+      bundler:
+        state: present
+        chdir: /home/vlad/reddit
+  
+  handlers:
+  - name: restart puma
+    become: true
+    systemd: name=puma state=restarted

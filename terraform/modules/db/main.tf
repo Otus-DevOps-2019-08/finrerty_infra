@@ -27,14 +27,14 @@ resource "google_compute_instance" "db" {
     private_key = file(var.private_key_path)
   }
 
-  provisioner "file" {
-    source = "../modules/db/files/mongod.conf"
-    destination = "/tmp/mongod.conf"
-  }
+#  provisioner "file" {
+#    source = "../modules/db/files/mongod.conf"
+#    destination = "/tmp/mongod.conf"
+#  }
 
-  provisioner "remote-exec" {
-    inline = ["sudo mv /tmp/mongod.conf /etc/mongod.conf && sudo systemctl restart mongod"]
-  }
+#  provisioner "remote-exec" {
+#    inline = ["sudo mv /tmp/mongod.conf /etc/mongod.conf && sudo systemctl restart mongod"]
+#  }
 }
 
 # Правило firewall
