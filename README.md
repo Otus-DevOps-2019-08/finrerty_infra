@@ -549,3 +549,86 @@ $ ansible -i inventory.gcp.yml all -m ping
     "ping": "pong"
 }
 ```
+
+# HomeWork №9
+1. Создадим новую ветку  
+$ git checkout -b ansible-2
+
+2. Закомментируем провижининг в конфигурации модулей app и db в Terraform
+
+3. Реализуем 2 подхода в создании плейбуков, создав файлы:  
+reddit_app_multiple_plays.yml  
+reddit_app_one_play.yml
+
+4. Теперь создадим отдельные плейбуки для каждого действия, разделив предыдущие  
+app.yml  
+db.yml  
+deploy.yml
+
+5. Объединим выполнение данных плейбуков в site.yml
+
+6. Пересоздадим инфраструктуру и проверим корректность работы site.yml  
+Так же меняем IP-адреса в inventory.yml и IP-адрес сервера БД в переменной db_host  
+$ cd terraform/stage && terraform destroy --auto-approve  
+$ terraform apply --auto-approve  
+$ cd .. && cd ../ansible && ansible-playbook site.yml  
+
+Далее убеждаемся, что сайт доступен.  
+
+7. Создадим packer_app.yml, заменив им скрипт packer/scripts/install_ruby.sh  
+Для этого воспользуемся модулем apt:
+```
+apt:
+      update_cache: yes
+      name: "{{ packages }}"
+    vars:
+      packages:
+      - ruby-full
+      - ruby-bundler
+      - build-essential
+```
+
+8. Теперь необходимо заменить скрипт packer/scripts/install_mongod.sh  
+Здесь нам потребуется несколько модулей: apt_key, apt_repository и service  
+Создадим файл packer_db.yml:
+```
+  tasks:
+  - name: Add APT Key
+    apt_key:
+      url: https://www.mongodb.org/static/pgp/server-3.2.asc
+      state: present
+
+  - name: Add mongoDB repository
+    apt_repository:
+      repo: deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse
+      state: present
+
+  - name: Update repos && MongoDB Installation
+    apt:
+      update_cache: yes
+      name: mongodb-org
+      state: present
+
+  - name: Enable MongoDB
+    service:
+      name: mongod
+      enabled: yes
+      state: started
+```
+
+9. Теперь укажем пути к новым файлам в разделе provisioners в JSON-файах Packer'a
+
+10. Теперь проврим, что инфраструктура собирается корректно:  
+- Удаляем старые образы Packer'a
+- Создаём новые:  
+$ packer build -var-file=variables.json app.json  
+$ packer build -var-file=variables.json db.json
+
+- Пересоздаём инфраструктуру  
+$ cd ../terraform && terraform destroy --auto-approve  
+$ terraform apply --auto-approve
+
+- Меняем ip-адреса в файле inventory.yml и IP-адрес сервера БД в переменной db_host
+
+- Выполняем все созданные ранее плейбуки для разворота приложения  
+$ cd ../ansible && ansible-playbook site.yml
