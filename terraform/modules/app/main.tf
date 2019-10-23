@@ -33,18 +33,18 @@ resource "google_compute_instance" "app" {
     private_key = file(var.private_key_path)
   }
 
-  provisioner "file" {
-    source      = "../modules/app/files/puma.service"
-    destination = "/tmp/puma.service"
-  }
+#  provisioner "file" {
+#    source      = "../modules/app/files/puma.service"
+#    destination = "/tmp/puma.service"
+#  }
 
-  provisioner "remote-exec" {
-    inline = ["echo export DATABASE_URL=\"${var.db_internal_ip}\" >> ~/.profile"]
-  }
+#  provisioner "remote-exec" {
+#    inline = ["echo export DATABASE_URL=\"${var.db_internal_ip}\" >> ~/.profile"]
+#  }
 
-  provisioner "remote-exec" {
-    script = "../modules/app/files/deploy.sh"
-  }
+#  provisioner "remote-exec" {
+#    script = "../modules/app/files/deploy.sh"
+#  }
 }
 
 resource "google_compute_firewall" "firewall_puma" {
