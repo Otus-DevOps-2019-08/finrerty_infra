@@ -10,7 +10,9 @@
     dest: /home/vlad/db_config
     owner: vlad
     group: vlad
-- copy: 
+
+- name: Copy puma.service file to systemd
+  copy:
     src=puma.service
     dest=/etc/systemd/system/puma.service
   notify: reload puma
