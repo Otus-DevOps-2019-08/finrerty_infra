@@ -725,72 +725,11 @@ $ terraform destroy --auto-approve
 $ terraform apply --auto-approve  
 $ cd ../ansible && ansible-playbook site.yml
 
-9. Перед дальнейшими действиями необходимо немного изменить конфигурацию Terraform
-- Объявим переменную environment в файле terraform/stage/variables.tf
-```
-variable environment {
-  description = "Environment type: stage or prod"
-  default = "stage"
-}
-```
+9. Перед дальнейшими действиями необходимо немного изменить конфигурацию Terraform  
+Реализация данных изменений подробно описана в дополнительном задании №1
 
-- Передадим данную переменную в модули с помощью файла terraform/stage/main.tf
-```
-...
-module "app" {
-  ...
-  environment      = var.environment
-}
-
-module "db" {
-  ...
-  environment      = var.environment
-}
-```
-- Теперь проделаем аналогичную процедуру для prod-среды, изменив stage на prod.
-
-- Осталось объявить переменную в модулях.  
-Добавим в terraform/modules/app/variables.tf и terraform/modules/db/variables.tf
-```
-variable environment {
-  description = "Environment type: stage or prod"
-}
-```
-
-- Используем нашу переменную в названиях серверов БД и приложения  
-В файле terraform/modules/db/main.tf отредактируем строчку:  
-```
-name         = "reddit-db-${var.environment}"
-```
-Аналогично в файле terraform/modules/app/main.tf
-
-- Теперь наши сервера будут называться reddit-app-stage/prod и reddit-db-stage/prod
-
-10. Настроим наш ansible для управления stage и prod инфраструктурой.
-- Перенесём наш inventory.gcp.yml в директории stage и prod.
-
-- В директории stage изменим модуль groups нашего инвентори:
-```
-groups:
-  app: "'app-prod' in name"
-  db: "'db-prod' in name"
-```
-
-- Аналогичные действия произведём и с prod
-
-- Теперь создадим перемененные групп хостов.  
-В файле environments/stage/group_vars/app установим следующее значение db_host:
-```
-db_host: "{{ hostvars['reddit-db-stage'].ip }}"
-```
-В environments/prod/group_vars/app:
-```
-db_host: "{{ hostvars['reddit-db-prod'].ip }}"
-```
-
-- Такое же разделение сделаем для файла group_vars/all различных окружений
-
-- Допишем модуль debug для вывода названия окружения перед выполнением плейбуков
+10. Настроим наш ansible для управления stage и prod инфраструктурой  
+Реализация данных изменений подробно описана в дополнительном задании №1
 
 11. Рассортируем по папкам файлы из корня директории Ansible
 
@@ -833,3 +772,100 @@ nginx_sites:
 ports    = ["80", "9292"]
 
 19. В Ансибле в файл playbooks/app.yml добавим вызов роли jdauphant.nginx
+
+20. Заново создадим окружение stage, выполним плейбук site.yml и проверим 80 порт  
+$ cd terraform/stage && terraform apply --auto-approve  
+$ cd .. && cd .. && ansible-playbook ansible/playbooks/site.yml --check  
+*Данная команда не отрабатывает до конца и завершается ошибкой. Однако  
+$ ansible-playbook ansible/playbooks/site.yml  
+Выполняется без ошибок и после завершения плея reddit-app доступен по 80-му порту
+
+21. Создадим файл ~/.ansible/vault.key
+
+22. Опишем его в ansible.cfg  
+```
+[defaults]
+...
+vault_password_file = ~/.ansible/vault.key
+```
+
+23. Создадим 2 файла с логинами-паролями пользователей и зашифруем их  
+$ ansible-vault encrypt environments/prod/credentials.yml  
+$ ansible-vault encrypt environments/stage/credentials.yml  
+
+24. Добавим в плейбук playbooks/site.yml строку " - import_playbook: users.yml"
+
+25. Пересоздадим всю инфраструктуру и проверим, что созданные учетки работают
+
+
+## Дополнительное задание №1
+Работа с Dynamic Inventory уже была настроена в предыдущих заданиях.  
+Теперь разделим среды stage и prod.  
+
+### Первым делом необходимо настроить terraform:
+
+- Объявим переменную environment в файле terraform/stage/variables.tf
+```
+variable environment {
+  description = "Environment type: stage or prod"
+  default = "stage"
+}
+```
+
+- Передадим данную переменную в модули с помощью файла terraform/stage/main.tf
+```
+...
+module "app" {
+  ...
+  environment      = var.environment
+}
+
+module "db" {
+  ...
+  environment      = var.environment
+}
+```
+- Теперь проделаем аналогичную процедуру для prod-среды, изменив stage на prod.
+
+- Осталось объявить переменную в модулях.  
+Добавим в terraform/modules/app/variables.tf и terraform/modules/db/variables.tf
+```
+variable environment {
+  description = "Environment type: stage or prod"
+}
+```
+
+- Используем нашу переменную в названиях серверов БД и приложения  
+В файле terraform/modules/db/main.tf отредактируем строчку:  
+```
+name         = "reddit-db-${var.environment}"
+```
+Аналогично в файле terraform/modules/app/main.tf
+
+- Теперь наши сервера будут называться reddit-app-stage/prod и reddit-db-stage/prod
+
+### Настраиваем ansible
+- Перенесём наш inventory.gcp.yml в директории stage и prod.
+
+- В директории stage изменим модуль groups нашего инвентори:
+```
+groups:
+  app: "'app-stage' in name"
+  db: "'db-stage' in name"
+```
+
+- Аналогичные действия произведём и с prod
+
+- Теперь создадим перемененные групп хостов.  
+В файле environments/stage/group_vars/app установим следующее значение db_host:
+```
+db_host: "{{ hostvars['reddit-db-stage'].ip }}"
+```
+В environments/prod/group_vars/app:
+```
+db_host: "{{ hostvars['reddit-db-prod'].ip }}"
+```
+
+- Такое же разделение сделаем для файла group_vars/all различных окружений
+
+- Допишем модуль debug для вывода названия окружения перед выполнением плейбуков
