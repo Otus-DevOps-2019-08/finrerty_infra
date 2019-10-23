@@ -18,6 +18,7 @@ module "app" {
   private_key_path = var.private_key_path
   zone             = var.zone
   app_disk_image   = var.app_disk_image
+  environment      = var.environment
   db_internal_ip   = module.db.db_internal_ip
 }
 
@@ -27,6 +28,7 @@ module "db" {
   private_key_path = var.private_key_path
   zone            = var.zone
   db_disk_image   = var.db_disk_image
+  environment      = var.environment
 }
 
 module "vpc" {

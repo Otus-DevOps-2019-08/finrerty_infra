@@ -23,3 +23,7 @@ variable server_count {
 variable db_internal_ip {
   description = "Database network IP"
 }
+
+variable environment {
+  description = "Environment type: stage or prod"
+}

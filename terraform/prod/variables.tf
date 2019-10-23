@@ -36,3 +36,8 @@ variable zone {
 variable server_count {
   default = 1
 }
+
+variable environment {
+  description = "Environment type: stage or prod"
+  default = "prod"
+}

@@ -10,3 +10,4 @@ packer/variables.json
 
 #файлы ansible
 *.retry
+jdauphant.nginx

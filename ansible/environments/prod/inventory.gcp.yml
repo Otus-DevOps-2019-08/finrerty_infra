@@ -4,8 +4,8 @@ projects:
 zones:
   - europe-west1-b
 groups:
-  app: "'app' in name"
-  db: "'db' in name"
+  app: "'app-prod' in name"
+  db: "'db-prod' in name"
 filters: []
 auth_kind: serviceaccount
 service_account_file: "/home/vlad/.gcp/infra-253311-496a801da892.json"
