@@ -869,3 +869,73 @@ db_host: "{{ hostvars['reddit-db-prod'].ip }}"
 - Такое же разделение сделаем для файла group_vars/all различных окружений
 
 - Допишем модуль debug для вывода названия окружения перед выполнением плейбуков
+
+
+## Дополнительное задание №2
+Для внесения изменений в TravisCI настроим trytravis:
+1. Установим trytravis  
+$ pip install trytravis
+
+2. Создадим тестовый репозиторий - https://github.com/finrerty/trytravis-test.git
+
+3. Укажем его в качестве основного для trytravis'a  
+$ trytravis --repo ssh://git@github.com/finrerty/trytravis-test
+
+4. Зайдём в корень репозитория и выполним команду  
+$ trytravis  
+
+5. Дожидаемся ответа, что билд прошёл успешно.
+
+6. Теперь необходимо настроить тесты. Для этого пишем простой скрипт tests.sh:
+```
+#!/bin/bash
+# install ansible for packer validate
+sudo pip install --upgrade pip
+sudo pip install ansible
+
+#packer
+packer validate -var-file=packer/variables.json.example packer/app.json
+packer validate -var-file=packer/variables.json.example packer/db.json
+packer validate -var-file=packer/variables.json.example packer/immutable.json
+packer validate -var-file=packer/variables.json.example packer/ubuntu16.json
+
+#install terraform & tflint
+curl https://releases.hashicorp.com/terraform/0.12.8/terraform_0.12.8_linux_amd64.zip -o /tmp/terraform.zip
+sudo unzip /tmp/terraform.zip terraform -d /usr/bin/
+curl https://raw.githubusercontent.com/wata727/tflint/master/install_linux.sh | bash
+
+#terraform stage
+cd terraform/stage
+terraform get && terraform init
+tflint
+terraform validate
+
+#terraform prod
+cd ../prod
+terraform get && terraform init
+tflint
+terraform validate
+
+#Install Ansible-lint
+cd .. && cd ..
+sudo pip install ansible-lint
+
+#Ansible
+ansible-lint -x 401 ansible_playbooks/*
+```
+
+7. Для успешного прохождения тестов так же необходимо изменить пути в скриптах  
+Packer'a с scripts/startup_script.sh на packer/scripts/startup_script.sh.
+
+8. И указываем в файле .travis.yml к нему путь для выполнения
+```
+...
+before_install:
+- sh ./play-travis/tests.sh
+...
+```
+
+9. Выполняем trytravis
+
+10. Все тесты успешно выполнены  
+https://travis-ci.com/finrerty/trytravis-test/jobs/249120234
