@@ -550,6 +550,7 @@ $ ansible -i inventory.gcp.yml all -m ping
 }
 ```
 
+
 # HomeWork №9
 1. Создадим новую ветку  
 $ git checkout -b ansible-2
@@ -684,3 +685,257 @@ compose:
 $ cd ../terraform/stage && terraform destroy --auto-approve
 $ terraform apply --auto-approve
 $ cd ../ansible && ansible-playbook site.yml
+
+
+# HomeWork №10
+1. Создадим новую ветку  
+$ git checkout -b ansible-3
+
+2. Создадим 2 новые роли: app и db  
+$ ansible-galaxy init app  
+$ ansible-galaxy init db
+
+3. Теперь займёмся наполнением роли db, необходимо изменить 3 .yml файла в папках:  
+/roles/db/tasks/main.yml  
+/roles/db/handlers/main.yml  
+/roles/db/defaults/main.yml
+
+4. Так же перенесём шаблон файла mongod.conf.j2 в папку  
+/roles/db/templates/mongod.conf.j2
+
+5. Выполним аналогичные действия для роли app, только тут ещё заполним папку files:  
+/roles/app/files/puma.service
+
+6. В файлах tasks/main.yml обеих ролей изменим полные пути к src файлам на их имена
+
+7. Приведём плейбуки к виду для вызова роли, например - db.yml:
+```
+- name: App configuration
+  hosts: app
+  become: true
+  vars:
+    db_host: "{{ hostvars['reddit-db'].ip }}"
+  
+  roles:
+    - app
+```
+
+8. Заново создадим инфраструктуру и проверим работоспособность ролей  
+$ terraform destroy --auto-approve  
+$ terraform apply --auto-approve  
+$ cd ../ansible && ansible-playbook site.yml
+
+9. Перед дальнейшими действиями необходимо немного изменить конфигурацию Terraform  
+Реализация данных изменений подробно описана в дополнительном задании №1
+
+10. Настроим наш ansible для управления stage и prod инфраструктурой  
+Реализация данных изменений подробно описана в дополнительном задании №1
+
+11. Рассортируем по папкам файлы из корня директории Ansible
+
+12. В файл ansible.cfg допишем:
+```
+[defaults]
+...
+roles_path = ./roles
+
+[diff]
+always = True
+context = 5
+...
+```
+
+13. Проверим корректную работу обоих окружений  
+
+14. Установим jdauphant.nginx  
+$ touch environments/stage/requirements.yml  
+$ touch environments/prod/requirements.yml  
+
+15. Добавим в них запись с названием и версией данной роли  
+
+16. Установим роль  
+$ ansible-galaxy install -r environments/stage/requirements.yml
+
+17. Добавим в файлы stage/group_vars/app и prod/group_vars/app:
+```
+nginx_sites:
+  default:
+    - listen 80
+    - server_name "reddit"
+    - location / {
+        proxy_pass http://127.0.0.1:9292;
+      }
+```
+
+18. Добавим в terraform открытие 80 порта для окружений stage и prod  
+В файле app/main.tf в ресурсе google_compute_firewall допишем:  
+ports    = ["80", "9292"]
+
+19. В Ансибле в файл playbooks/app.yml добавим вызов роли jdauphant.nginx
+
+20. Заново создадим окружение stage, выполним плейбук site.yml и проверим 80 порт  
+$ cd terraform/stage && terraform apply --auto-approve  
+$ cd .. && cd .. && ansible-playbook ansible/playbooks/site.yml --check  
+*Данная команда не отрабатывает до конца и завершается ошибкой. Однако  
+$ ansible-playbook ansible/playbooks/site.yml  
+Выполняется без ошибок и после завершения плея reddit-app доступен по 80-му порту
+
+21. Создадим файл ~/.ansible/vault.key
+
+22. Опишем его в ansible.cfg  
+```
+[defaults]
+...
+vault_password_file = ~/.ansible/vault.key
+```
+
+23. Создадим 2 файла с логинами-паролями пользователей и зашифруем их  
+$ ansible-vault encrypt environments/prod/credentials.yml  
+$ ansible-vault encrypt environments/stage/credentials.yml  
+
+24. Добавим в плейбук playbooks/site.yml строку " - import_playbook: users.yml"
+
+25. Пересоздадим всю инфраструктуру и проверим, что созданные учетки работают
+
+
+## Дополнительное задание №1
+Работа с Dynamic Inventory уже была настроена в предыдущих заданиях.  
+Теперь разделим среды stage и prod.  
+
+### Первым делом необходимо настроить terraform:
+
+- Объявим переменную environment в файле terraform/stage/variables.tf
+```
+variable environment {
+  description = "Environment type: stage or prod"
+  default = "stage"
+}
+```
+
+- Передадим данную переменную в модули с помощью файла terraform/stage/main.tf
+```
+...
+module "app" {
+  ...
+  environment      = var.environment
+}
+
+module "db" {
+  ...
+  environment      = var.environment
+}
+```
+- Теперь проделаем аналогичную процедуру для prod-среды, изменив stage на prod.
+
+- Осталось объявить переменную в модулях.  
+Добавим в terraform/modules/app/variables.tf и terraform/modules/db/variables.tf
+```
+variable environment {
+  description = "Environment type: stage or prod"
+}
+```
+
+- Используем нашу переменную в названиях серверов БД и приложения  
+В файле terraform/modules/db/main.tf отредактируем строчку:  
+```
+name         = "reddit-db-${var.environment}"
+```
+Аналогично в файле terraform/modules/app/main.tf
+
+- Теперь наши сервера будут называться reddit-app-stage/prod и reddit-db-stage/prod
+
+### Настраиваем ansible
+- Перенесём наш inventory.gcp.yml в директории stage и prod.
+
+- В директории stage изменим модуль groups нашего инвентори:
+```
+groups:
+  app: "'app-stage' in name"
+  db: "'db-stage' in name"
+```
+
+- Аналогичные действия произведём и с prod
+
+- Теперь создадим перемененные групп хостов.  
+В файле environments/stage/group_vars/app установим следующее значение db_host:
+```
+db_host: "{{ hostvars['reddit-db-stage'].ip }}"
+```
+В environments/prod/group_vars/app:
+```
+db_host: "{{ hostvars['reddit-db-prod'].ip }}"
+```
+
+- Такое же разделение сделаем для файла group_vars/all различных окружений
+
+- Допишем модуль debug для вывода названия окружения перед выполнением плейбуков
+
+
+## Дополнительное задание №2
+Для внесения изменений в TravisCI настроим trytravis:
+1. Установим trytravis  
+$ pip install trytravis
+
+2. Создадим тестовый репозиторий - https://github.com/finrerty/trytravis-test.git
+
+3. Укажем его в качестве основного для trytravis'a  
+$ trytravis --repo ssh://git@github.com/finrerty/trytravis-test
+
+4. Зайдём в корень репозитория и выполним команду  
+$ trytravis  
+
+5. Дожидаемся ответа, что билд прошёл успешно.
+
+6. Теперь необходимо настроить тесты. Для этого пишем простой скрипт tests.sh:
+```
+#!/bin/bash
+# install ansible for packer validate
+sudo pip install --upgrade pip
+sudo pip install ansible
+
+#packer
+packer validate -var-file=packer/variables.json.example packer/app.json
+packer validate -var-file=packer/variables.json.example packer/db.json
+packer validate -var-file=packer/variables.json.example packer/immutable.json
+packer validate -var-file=packer/variables.json.example packer/ubuntu16.json
+
+#install terraform & tflint
+curl https://releases.hashicorp.com/terraform/0.12.8/terraform_0.12.8_linux_amd64.zip -o /tmp/terraform.zip
+sudo unzip /tmp/terraform.zip terraform -d /usr/bin/
+curl https://raw.githubusercontent.com/wata727/tflint/master/install_linux.sh | bash
+
+#terraform stage
+cd terraform/stage
+terraform get && terraform init
+tflint
+terraform validate
+
+#terraform prod
+cd ../prod
+terraform get && terraform init
+tflint
+terraform validate
+
+#Install Ansible-lint
+cd .. && cd ..
+sudo pip install ansible-lint
+
+#Ansible
+ansible-lint -x 401 ansible_playbooks/*
+```
+
+7. Для успешного прохождения тестов так же необходимо изменить пути в скриптах  
+Packer'a с scripts/startup_script.sh на packer/scripts/startup_script.sh.
+
+8. И указываем в файле .travis.yml к нему путь для выполнения
+```
+...
+before_install:
+- sh ./play-travis/tests.sh
+...
+```
+
+9. Выполняем trytravis
+
+10. Все тесты успешно выполнены  
+https://travis-ci.com/finrerty/trytravis-test/jobs/249120234

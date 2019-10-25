@@ -1,0 +1,5 @@
+---
+# defaults file for db
+mongod_port: 27017
+mongod_bind_ip: 127.0.0.1
+env: local

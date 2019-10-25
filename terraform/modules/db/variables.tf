@@ -14,3 +14,7 @@ variable db_disk_image {
 variable private_key_path {
   description = "Path to the public key used to connect to instance"
 }
+
+variable environment {
+  description = "Environment type: stage or prod"
+}
