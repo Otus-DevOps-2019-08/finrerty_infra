@@ -1,0 +1,11 @@
+- name: Update cache && Ruby Installation
+  apt:
+    update_cache: yes
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - ruby-full
+    - ruby-bundler
+    - build-essential
+  tags: ruby
+

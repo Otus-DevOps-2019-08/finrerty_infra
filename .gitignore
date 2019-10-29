@@ -11,3 +11,11 @@ packer/variables.json
 #файлы ansible
 *.retry
 jdauphant.nginx
+
+#файлы vagrant
+.vagrant/
+*.log
+*.pyc
+.molecule
+.cache
+.pytest_cache

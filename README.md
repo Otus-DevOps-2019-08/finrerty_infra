@@ -939,3 +939,145 @@ before_install:
 
 10. Все тесты успешно выполнены  
 https://travis-ci.com/finrerty/trytravis-test/jobs/249120234
+
+
+# HomeWork №11
+1. Создадим новую ветку  
+$ git checkout -b ansible-4
+
+2. Установим VirtualBox  
+$ echo 'deb [arch=amd64] https://download.virtualbox.org/virtualbox/debian bionic contrib' > /etc/apt/sources.list  
+$ wget -q https://www.virtualbox.org/download/oracle_vbox_2016.asc -O- | sudo apt-key add -  
+$ sudo apt-get update  
+$ sudo apt-get install virtualbox-6.0
+
+3. Установим Vagrant
+$ wget https://releases.hashicorp.com/vagrant/2.2.6/vagrant_2.2.6_x86_64.deb  
+$ dpkg -i vagrant_2.2.6_x86_64.deb
+
+4. Добавим в .gitignore файлы Vagrant и Molecule
+
+5. Создадим Vagrantfile с описанием виртуальных машин
+
+6. Создадим виртуальные машины и проверим их  
+$ vagrant up  
+$ vagrant status
+
+7. Добавим провижининг в определение хостов dbserver и appserver
+
+8. Допишем задание для установки Python
+
+9. Разделим таски по установке db и app на install_mongo.yml/config_mongo.yml и ruby.yml/puma.yml соответственно
+
+10. Параметризуем пользователя, под которым разворачиваем приложение  
+Заменим vlad на {{ deploy_user }} во всех .yml файлах
+
+11. Установим Molecule и Testinfra, предварительно описав пакеты в requirements.txt  
+$ pip install -r requirements.txt
+
+12. Инициализируем директорию Molecule
+$ molecule init scenario --scenario-name default -r db -d vagrant
+
+13. Добавим тесты в db/molecule/default/tests/test_default.py
+
+14. Создадим тестовую машину molecule и прогоним тесты
+
+
+## Самостоятельные задания
+
+1. Напишем проверку порта 27017 для роли db
+```
+def test_ip_port(host):
+    ip_port = host.addr('127.0.0.1')
+    assert ip_port.port(27017).is_reachable
+```
+
+2. Настроим корректную работу Packer, для этого внесём следующие изменения
+- Отредактируем packer_app.yml и packer_db.yml, оставим только путь к соответствующим ролям
+- Отметим необходимые нам задания тэгами:
+
+install_mongo.yml
+```
+- name: Add APT Key
+  apt_key:
+    url: https://www.mongodb.org/static/pgp/server-3.2.asc
+    state: present
+  tags: mongo
+
+- name: Add mongoDB repository
+  apt_repository:
+    repo: deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse
+    state: present
+  tags: mongo
+
+- name: Update repos && MongoDB Installation
+  apt:
+    update_cache: yes
+    name: mongodb-org
+    state: present
+  tags: mongo
+
+- name: Enable MongoDB
+  service:
+    name: mongod
+    enabled: yes
+    state: started
+  tags: mongo
+```
+
+ruby.yml
+```
+- name: Update cache && Ruby Installation
+  apt:
+    update_cache: yes
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - ruby-full
+    - ruby-bundler
+    - build-essential
+  tags: ruby
+```
+
+- Изменим раздел provisioners для app.json
+```
+"provisioners": [
+    {
+	"type": "ansible",
+	"playbook_file": "ansible/playbooks/packer_app.yml",
+	"extra_arguments": ["--tags","ruby"],
+        "ansible_env_vars": ["ANSIBLE_ROLES_PATH={{ pwd }}/ansible/roles"]
+    }
+]
+```
+
+и для db.json
+```
+"provisioners": [
+    {
+      "type": "ansible",
+      "playbook_file": "ansible/playbooks/packer_db.yml"
+      "extra_arguments": ["--tags","mongo"],
+      "ansible_env_vars": ["ANSIBLE_ROLES_PATH={{ pwd }}/ansible/roles"]
+    }
+]
+```
+
+- Выполним packer build и убедимся, что всё работает корректно.
+
+
+## Дополнительное задание №1
+
+- Добавим конфигурацию nginx для работы приложения на 80м порту в hfpltk ansible.extra_vars Vagrantfile
+```
+ansible.extra_vars = {
+  "deploy_user" => "ubuntu",
+  "nginx_sites" => {
+    "default" => {
+      "server_name 'reddit'": "",
+      "listen 80": "",
+      "location / {proxy_pass http://127.0.0.1:9292;}": ""
+    }
+  }
+}
+```
