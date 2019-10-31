@@ -1,25 +1,5 @@
 - name: Database packer template configuration
   hosts: all
   become: true
-  tasks:
-  - name: Add APT Key
-    apt_key:
-      url: https://www.mongodb.org/static/pgp/server-3.2.asc
-      state: present
-
-  - name: Add mongoDB repository
-    apt_repository:
-      repo: deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse
-      state: present
-      
-  - name: Update repos && MongoDB Installation
-    apt:
-      update_cache: yes
-      name: mongodb-org
-      state: present
-
-  - name: Enable MongoDB
-    service:
-      name: mongod
-      enabled: yes
-      state: started
+  roles:
+    - db
